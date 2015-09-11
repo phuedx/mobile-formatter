@@ -1,0 +1,4 @@
+[submodule "vendor/wikimedia/mediawiki"]
+	path = vendor/wikimedia/mediawiki
+	url = https://github.com/wikimedia/mediawiki.git
+	branch = wmf/1.26wmf22
