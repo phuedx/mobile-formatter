@@ -1,0 +1,17 @@
+language: php
+
+php:
+  - hhvm
+
+script:
+  - git submodule update --init
+
+  - composer self-update
+  - composer install
+  - sh -c "cd vendor/wikimedia/mediawiki && composer install"
+
+  - composer test
+
+# Use Travis CI's container-based infrastructure
+# (http://docs.travis-ci.com/user/migrating-from-legacy/).
+sudo: false
