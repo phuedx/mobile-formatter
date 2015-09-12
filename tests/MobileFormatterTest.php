@@ -3,7 +3,6 @@
 namespace Tests\Wikimedia\MobileFormatter;
 
 use PHPUnit_Framework_TestCase;
-use Title;
 use Wikimedia\MobileFormatter\MobileFormatter;
 
 /**
@@ -18,9 +17,8 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 	 * @param callable|bool $callback
 	 */
 	public function testHtmlTransform( $input, $expected, $callback = false ) {
-		$t = Title::newFromText( 'Mobile' );
 		$input = str_replace( "\r", '', $input ); // "yay" to Windows!
-		$mf = new MobileFormatter( MobileFormatter::wrapHTML( $input ), $t );
+		$mf = new MobileFormatter( MobileFormatter::wrapHTML( $input ) );
 		if ( $callback ) {
 			$callback( $mf );
 		}

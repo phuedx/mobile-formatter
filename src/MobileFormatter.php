@@ -27,13 +27,7 @@ class MobileFormatter extends HtmlFormatter {
 	protected $headingTransformEnd = '<div>';
 	/** @var array $topHeadingTags Array of strings with possible tags,
 		can be recognized as top headings. */
-	public $topHeadingTags = array();
-
-	/**
-	 * Saves a Title Object
-	 * @var Title $title
-	 */
-	protected $title;
+	public $topHeadingTags = array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' );
 
 	/**
 	 * Are sections expandable?
@@ -45,19 +39,6 @@ class MobileFormatter extends HtmlFormatter {
 	 * @var boolean $mainPage
 	 */
 	protected $mainPage = false;
-
-	/**
-	 * Constructor
-	 *
-	 * @param string $html Text to process
-	 * @param Title $title Title to which $html belongs
-	 */
-	public function __construct( $html, $title ) {
-		parent::__construct( $html );
-
-		$this->title = $title;
-		$this->topHeadingTags = array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' );
-	}
 
 	/**
 	 * Creates and returns a MobileFormatter
@@ -76,7 +57,7 @@ class MobileFormatter extends HtmlFormatter {
 		$isSpecialPage = $title->isSpecialPage();
 
 		$html = self::wrapHTML( $html );
-		$formatter = new MobileFormatter( $html, $title );
+		$formatter = new MobileFormatter( $html );
 		$formatter->enableExpandableSections( !$isMainPage && !$isSpecialPage );
 
 		$formatter->setIsMainPage( $isMainPage );
