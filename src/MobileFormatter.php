@@ -86,6 +86,42 @@ class MobileFormatter extends HtmlFormatter {
 	}
 
 	/**
+	 * Sets the possible heading tags
+	 *
+	 * As sections are being marked as expandable, their associated headings
+	 * are found and transformed. For details of the transformation see
+	 * {@link MobileFormatter::headingTransform}.  The "top heading tags"
+	 * property property defines the set of tags that will be considered
+	 * headings and the order in which they will be searched for in the
+	 * document.  The first heading tag found will be ignored but all others
+	 * will be transformed.
+	 *
+	 * Example:
+	 * <code>
+	 * <?php
+	 *
+	 * $input = '<h1>Foo</h1><div><h2>Bar</h2></div>
+	 * $formatter = new \Wikimedia\MobileFormatter\MobileFormatter( $input );
+	 * $formatter->enableExpandableSections();
+	 *
+	 * // Note well the order of the tags.
+	 * $formatter->setTopHeadingTags( array( 'h2', 'h1' ) );
+	 *
+	 * $formatter->getText();
+	 * // => "<div><h1 class="in-block">Foo</h1></div><h2>Bar</h2><div></div>"
+	 * </code>
+	 *
+	 * By default, the rank of the HTML heading elements is respected, i.e.
+	 * the default value is <code>['h1', 'h2', 'h3', 'h4', 'h5',
+	 * 'h6']</code>.
+	 *
+	 * @param array $topHeadingTags
+	 */
+	public function setTopHeadingTags( array $topHeadingTags ) {
+		$this->topHeadingTags = $topHeadingTags;
+	}
+
+	/**
 	 * Removes content inappropriate for mobile devices
 	 * @param bool $removeDefaults Whether default settings at $wgMFRemovableClasses should be used
 	 * @return array

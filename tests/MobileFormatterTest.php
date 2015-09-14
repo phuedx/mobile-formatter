@@ -157,4 +157,56 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 			),
 		);
 	}
+
+	/**
+	 * @dataProvider provideHeadingTransform
+	 */
+	public function testHeadingTransform( array $topHeadingTags, $input, $expectedOutput ) {
+		$formatter = new MobileFormatter( $input );
+
+		// If MobileFormatter#enableExpandableSections isn't called, then headings
+		// won't be transformed.
+		$formatter->enableExpandableSections( true );
+
+		$formatter->setTopHeadingTags( $topHeadingTags );
+		$formatter->filterContent();
+
+		$this->assertEquals( $expectedOutput, $formatter->getText() );
+	}
+
+	public function provideHeadingTransform() {
+		$input =  '<h1>Foo</h1><h2>Bar</h2>';
+
+		return array(
+			array(
+				array( 'h1', 'h2' ),
+				$input,
+				'<div></div><h1>Foo</h1><div><h2 class="in-block">Bar</h2></div>',
+			),
+
+			// FIXME: If none of the top heading tags are in the document, then all of
+			// the headings are transformed.
+			array(
+				array( 'h3' ),
+				$input,
+				'<div><h1 class="in-block">Foo</h1><h2 class="in-block">Bar</h2></div>',
+			),
+
+			// FIXME: If there are no top heading tags specified, then all of the
+			// headings are transformed.
+			array(
+				array(),
+				$input,
+				'<div><h1 class="in-block">Foo</h1><h2 class="in-block">Bar</h2></div>',
+			),
+
+			// FIXME: Note the extraneous `div` at the end of this example and at the
+			// beginning of the first example.
+			array(
+				array( 'h2', 'h1' ),
+				$input,
+				'<div><h1 class="in-block">Foo</h1></div><h2>Bar</h2><div></div>',
+			),
+		);
+	}
 }
