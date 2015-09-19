@@ -5,16 +5,10 @@ namespace Tests\Wikimedia\MobileFormatter;
 use PHPUnit_Framework_TestCase;
 use Wikimedia\MobileFormatter\MobileFormatter;
 
-/**
- * @group MobileFrontend
- */
 class MobileFormatterTest extends PHPUnit_Framework_TestCase {
+
 	/**
-	 * @dataProvider getHtmlData
-	 *
-	 * @param $input
-	 * @param $expected
-	 * @param callable|bool $callback
+	 * @dataProvider provideHtmlTransform
 	 */
 	public function testHtmlTransform( $input, $expected, $callback = false ) {
 		$input = str_replace( "\r", '', $input ); // "yay" to Windows!
@@ -27,7 +21,7 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals( str_replace( "\n", '', $expected ), str_replace( "\n", '', $html ) );
 	}
 
-	public function getHtmlData() {
+	public function provideHtmlTransform() {
 		$enableSections = function ( MobileFormatter $mf ) {
 			$mf->enableExpandableSections();
 		};
