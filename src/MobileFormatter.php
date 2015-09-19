@@ -34,11 +34,6 @@ class MobileFormatter extends HtmlFormatter {
 	 * @var boolean $expandableSections
 	 */
 	protected $expandableSections = false;
-	/**
-	 * Whether actual page is the main page
-	 * @var boolean $mainPage
-	 */
-	protected $mainPage = false;
 
 	/**
 	 * Creates and returns a MobileFormatter
@@ -82,7 +77,6 @@ class MobileFormatter extends HtmlFormatter {
 	 * @param boolean $value
 	 */
 	public function setIsMainPage( $value = true ) {
-		$this->mainPage = $value;
 	}
 
 	/**
@@ -174,9 +168,6 @@ class MobileFormatter extends HtmlFormatter {
 	 * @return string Processed HTML
 	 */
 	public function getText( $element = null ) {
-		if ( $this->mainPage ) {
-			$element = $this->parseMainPage( $this->getDoc() );
-		}
 		$html = parent::getText( $element );
 
 		return $html;
@@ -192,86 +183,12 @@ class MobileFormatter extends HtmlFormatter {
 	}
 
 	/**
-	 * Performs transformations specific to main page
-	 * @param DOMDocument $mainPage Tree to process
-	 * @return DOMElement|null
-	 */
-	protected function parseMainPage( DOMDocument $mainPage ) {
-		$featuredArticle = $mainPage->getElementById( 'mp-tfa' );
-		$newsItems = $mainPage->getElementById( 'mp-itn' );
-		$centralAuthImages = $mainPage->getElementById( 'central-auth-images' );
-
-		// Collect all the Main Page DOM elements that have an id starting with 'mf-'
-		$xpath = new DOMXpath( $mainPage );
-		$elements = $xpath->query( '//*[starts-with(@id, "mf-")]' );
-
-		// These elements will be handled specially
-		$commonAttributes = array( 'mp-tfa', 'mp-itn' );
-
-		// Start building the new Main Page content in the $content var
-		$content = $mainPage->createElement( 'div' );
-		$content->setAttribute( 'id', 'mainpage' );
-
-		// If there is a featured article section, add it to the new Main Page content
-		if ( $featuredArticle ) {
-			$h2FeaturedArticle = $mainPage->createElement(
-				'h2',
-				$this->msg( 'mobile-frontend-featured-article' )
-			);
-			$content->appendChild( $h2FeaturedArticle );
-			$content->appendChild( $featuredArticle );
-		}
-
-		// If there is a news section, add it to the new Main Page content
-		if ( $newsItems ) {
-			$h2NewsItems = $mainPage->createElement( 'h2', $this->msg( 'mobile-frontend-news-items' ) );
-			$content->appendChild( $h2NewsItems );
-			$content->appendChild( $newsItems );
-		}
-
-		// Go through all the collected Main Page DOM elements and format them for mobile
-		/** @var $element DOMElement */
-		foreach ( $elements as $element ) {
-			if ( $element->hasAttribute( 'id' ) ) {
-				$id = $element->getAttribute( 'id' );
-				// Filter out elements processed specially
-				if ( !in_array( $id, $commonAttributes ) ) {
-					// Convert title attributes into h2 headers
-					$sectionTitle = $element->hasAttribute( 'title' ) ? $element->getAttribute( 'title' ) : '';
-					if ( $sectionTitle !== '' ) {
-						$element->removeAttribute( 'title' );
-						$h2UnknownMobileSection =
-							$mainPage->createElement( 'h2', htmlspecialchars( $sectionTitle ) );
-						$content->appendChild( $h2UnknownMobileSection );
-					}
-					$br = $mainPage->createElement( 'br' );
-					$br->setAttribute( 'clear', 'all' );
-					$content->appendChild( $element );
-					$content->appendChild( $br );
-				}
-			}
-		}
-
-		// If no mobile-appropriate content has been assembled at this point, return null.
-		// This will cause HtmlFormatter to fall back to using the entire page.
-		if ( $content->childNodes->length == 0 ) {
-			return null;
-		}
-
-		// If there are CentralAuth 1x1 images, preserve them unmodified
-		if ( $centralAuthImages ) {
-			$content->appendChild( $centralAuthImages );
-		}
-
-		return $content;
-	}
-
-	/**
 	 * Transforms heading for toggling and editing
 	 *
-	 * - Add css classes to all h-tags (h1-h6) _inside_ a section
-	 *   to enable editing of these sections. Doesn't add this class to the first
-	 *   heading ($tagName)
+	 * - Add CSS classes to all heading tags _inside_ a section to enable
+	 *   editing of these sections. Doesn't add this class to the first
+	 *   heading (<code>$tagName</code>)
+	 *   {@see MobileFormatter::markSubHeadingsAsEditable}
 	 * - Wraps section-content inside a div to enable toggling
 	 *
 	 * @param string $s
@@ -279,22 +196,7 @@ class MobileFormatter extends HtmlFormatter {
 	 * @return string
 	 */
 	protected function headingTransform( $s, $tagName = 'h2' ) {
-		// add in-block class to all headings included in this section (except the first one)
-		// don't do this for the main page, it breaks things - Bug 190662
-		if ( !$this->mainPage ) {
-			$s = preg_replace_callback(
-				'/<(h[1-6])>/si',
-				function ( $match ) use ( $tagName ) {
-					$tag = $match[1];
-					$cssClass = '';
-					if ( $tag !== $tagName ) {
-						$cssClass = ' class="in-block"';
-					}
-					return '<' . $tag . $cssClass . '>';
-				},
-				$s
-			);
-		}
+		$s = $this->markSubHeadingsAsEditable( $s, $tagName );
 
 		// Makes sections expandable
 		$tagRegEx = '<' . $tagName . '.*</' . $tagName . '>';
@@ -306,6 +208,31 @@ class MobileFormatter extends HtmlFormatter {
 			$this->pageTransformEnd;
 
 		return $s;
+	}
+
+	/**
+	 * Marks sub-headings in a section as editable by adding the
+	 * <code>in-block</code> class.
+	 *
+	 * @param string $html
+	 * @param string $sectionHeading The tag name of the section's heading
+	 *  element
+	 * @return string
+	 */
+	protected function markSubHeadingsAsEditable( $html, $sectionHeading ) {
+		// add in-block class to all headings included in this section (except the first one)
+		return preg_replace_callback(
+			'/<(h[1-6])>/si',
+			function ( $match ) use ( $sectionHeading ) {
+				$tag = $match[1];
+				$cssClass = '';
+				if ( $tag !== $sectionHeading ) {
+					$cssClass = ' class="in-block"';
+				}
+				return '<' . $tag . $cssClass . '>';
+			},
+			$html
+		);
 	}
 
 	/**

@@ -35,9 +35,6 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 		$removeImages = function( MobileFormatter $f ) {
 			$f->setRemoveMedia();
 		};
-		$mainPage = function( MobileFormatter $f ) {
-			$f->setIsMainPage( true );
-		};
 
 		return array(
 			array(
@@ -50,18 +47,6 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 				'<img src="/foo/bar.jpg" alt="Blah"/>',
 				'<span class="mw-mf-image-replacement">[Blah]</span>',
 				$removeImages,
-			),
-			array(
-				'fooo
-<div id="mp-itn">bar</div>
-<div id="mf-custom" title="custom">blah</div>',
-				'<div id="mainpage"><h2>'
-					. wfMessage( 'mobile-frontend-news-items' )
-					. '</h2><div id="mp-itn">bar</div>'
-					. '<h2>custom</h2><div id="mf-custom">blah</div><br clear="all"></div>',
-				function ( MobileFormatter $mf ) {
-					$mf->setIsMainPage( true );
-				},
 			),
 			// \n</h2> in headers
 			array(
@@ -133,27 +118,6 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 					']</span>look at the cute kitty!' .
 					'<span class="mw-mf-image-replacement">[picture of angry dog]</span>',
 				$removeImages,
-			),
-			array(
-				'<div id="foo">test</div>',
-				'<div id="foo">test</div>',
-				$mainPage,
-			),
-			array(
-				'<div id="mf-foo" title="A &amp; B">test</div>',
-				'<div id="mainpage"><h2>A &amp; B</h2><div id="mf-foo">test</div><br clear="all"></div>',
-				$mainPage,
-			),
-			array(
-				'<div id="foo">test</div><div id="central-auth-images">images</div>',
-				'<div id="foo">test</div><div id="central-auth-images">images</div>',
-				$mainPage,
-			),
-			array(
-				'<div id="mf-foo" title="A &amp; B">test</div><div id="central-auth-images">images</div>',
-				'<div id="mainpage"><h2>A &amp; B</h2><div id="mf-foo">test</div><br clear="all">'
-					. '<div id="central-auth-images">images</div></div>',
-				$mainPage,
 			),
 		);
 	}
