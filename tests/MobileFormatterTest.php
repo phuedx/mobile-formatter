@@ -12,7 +12,7 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 	 */
 	public function testHtmlTransform( $input, $expected, $callback = false ) {
 		$input = str_replace( "\r", '', $input ); // "yay" to Windows!
-		$mf = new MobileFormatter( MobileFormatter::wrapHTML( $input ) );
+		$mf = new MobileFormatter( $input );
 		if ( $callback ) {
 			$callback( $mf );
 		}

@@ -36,31 +36,16 @@ class MobileFormatter extends HtmlFormatter {
 	protected $expandableSections = false;
 
 	/**
-	 * Creates and returns a MobileFormatter
+	 * Initializes a new instance of the class.
 	 *
-	 * @param MobileContext $context
+	 * Note well that the HTML is always wrapped using
+	 * {@see MobileFormatter::wrapHTML} so that it forms a complete
+	 * document.
+	 *
 	 * @param string $html
-	 *
-	 * @return MobileFormatter
 	 */
-	public static function newFromContext( MobileContext $context, $html ) {
-		$mfSpecialCaseMainPage = $context->getMFConfig()->get( 'MFSpecialCaseMainPage' );
-
-		$title = $context->getTitle();
-		$isMainPage = $title->isMainPage() && $mfSpecialCaseMainPage;
-		$isFilePage = $title->inNamespace( NS_FILE );
-		$isSpecialPage = $title->isSpecialPage();
-
-		$html = self::wrapHTML( $html );
-		$formatter = new MobileFormatter( $html );
-		$formatter->enableExpandableSections( !$isMainPage && !$isSpecialPage );
-
-		$formatter->setIsMainPage( $isMainPage );
-		if ( $context->getContentTransformations() && !$isFilePage ) {
-			$formatter->setRemoveMedia( $context->imagesDisabled() );
-		}
-
-		return $formatter;
+	public function __construct( $html ) {
+		parent::__construct( self::wrapHTML( $html ) );
 	}
 
 	/**
