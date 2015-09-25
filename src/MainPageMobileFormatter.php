@@ -15,11 +15,11 @@ class MainPageMobileFormatter extends MobileFormatter
 	}
 
 	/**
-	 * The marking of sub-headings as editable on the main page is disabled.
+	 * The marking of subheadings as editable on the main page is disabled.
 	 *
 	 * @link https://phabricator.wikimedia.org/T89559
 	 */
-	protected function markSubHeadingsAsEditable( $html, $sectionHeading ) {
+	protected function makeHeadingsEditable( array $headings ) {
 	}
 
 	/**

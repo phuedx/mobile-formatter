@@ -26,6 +26,7 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 			$mf->enableExpandableSections();
 		};
 		$longLine = "\n" . str_repeat( 'A', 5000 );
+		$longLine = "\nA";
 		$removeImages = function( MobileFormatter $f ) {
 			$f->setRemoveMedia();
 		};
@@ -47,8 +48,7 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 				'<h2><span class="mw-headline" id="Forty-niners">Forty-niners</span>'
 					. '<a class="edit-page" href="#editor/2">Edit</a></h2>'
 					. $longLine,
-				'<div></div>'
-					. '<h2><span class="mw-headline" id="Forty-niners">Forty-niners</span>'
+				'<h2><span class="mw-headline" id="Forty-niners">Forty-niners</span>'
 					. '<a class="edit-page" href="#editor/2">Edit</a></h2>'
 					. '<div>' . $longLine . '</div>',
 				$enableSections
@@ -59,8 +59,7 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 					. $longLine
 					. '<h4><span>h4</span></h4>'
 					. 'h4 text.',
-				'<div></div>'
-					. '<h3><span>h3</span></h3>'
+				'<h3><span>h3</span></h3>'
 					. '<div>'
 					. $longLine
 					. '<h4 class="in-block"><span>h4</span></h4>'
@@ -72,8 +71,7 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 			array(
 				'<h6><span>h6</span></h6>'
 					. $longLine,
-				'<div></div>'
-					. '<h6><span>h6</span></h6>'
+				'<h6><span>h6</span></h6>'
 					. '<div>' . $longLine . '</div>',
 				$enableSections
 			),
@@ -82,7 +80,7 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 				'<h2><span class="mw-headline" id="History"><span id="Overview"></span>'
 					. 'History</span><a class="edit-page" href="#editor/2">Edit</a></h2>'
 					. $longLine,
-				'<div></div><h2><span class="mw-headline" id="History"><span id="Overview"></span>'
+				'<h2><span class="mw-headline" id="History"><span id="Overview"></span>'
 					. 'History</span><a class="edit-page" href="#editor/2">Edit</a></h2><div>'
 					. $longLine . '</div>',
 				$enableSections
@@ -117,6 +115,24 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 	}
 
 	/**
+	 * @dataProvider provideTopHeadingTagsThrows
+	 * @expectedException InvalidArgumentException
+	 */
+	public function testSetTopHeadingTagsThrows( $topHeadingTags ) {
+		$formatter = new MobileFormatter( '<h1>Foo</h1>' );
+		$formatter->setTopHeadingTags( $topHeadingTags );
+	}
+
+	public function provideTopHeadingTagsThrows() {
+		return array(
+			array( array() ),
+			array( array( 'div' ) ),
+			array( array( 'h1', 'div' ) ),
+			array( array( 'h1', 'div', 'h2' ) ),
+		);
+	}
+
+	/**
 	 * @dataProvider provideHeadingTransform
 	 */
 	public function testHeadingTransform( array $topHeadingTags, $input, $expectedOutput ) {
@@ -133,37 +149,61 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 	}
 
 	public function provideHeadingTransform() {
-		$input =  '<h1>Foo</h1><h2>Bar</h2>';
-
 		return array(
+
+			// The "in-block" class is added to a subheading.
 			array(
 				array( 'h1', 'h2' ),
-				$input,
-				'<div></div><h1>Foo</h1><div><h2 class="in-block">Bar</h2></div>',
+				'<h1>Foo</h1><h2>Bar</h2>',
+				'<h1>Foo</h1><div><h2 class="in-block">Bar</h2></div>',
 			),
 
-			// FIXME: If none of the top heading tags are in the document, then all of
-			// the headings are transformed.
+			// The "in-block" class is added to a subheading
+			// without overwriting the existing attribute.
 			array(
-				array( 'h3' ),
-				$input,
-				'<div><h1 class="in-block">Foo</h1><h2 class="in-block">Bar</h2></div>',
+				array( 'h1', 'h2' ),
+				'<h1>Foo</h1><h2 class="baz">Bar</h2>',
+				'<h1>Foo</h1><div><h2 class="baz in-block">Bar</h2></div>',
 			),
 
-			// FIXME: If there are no top heading tags specified, then all of the
-			// headings are transformed.
+			// The "in-block" class is added to all subheadings.
 			array(
-				array(),
-				$input,
-				'<div><h1 class="in-block">Foo</h1><h2 class="in-block">Bar</h2></div>',
+				array( 'h1', 'h2', 'h3' ),
+				'<h1>Foo</h1><h2>Bar</h2><h3>Qux</h3>',
+				'<h1>Foo</h1><div><h2 class="in-block">Bar</h2><h3 class="in-block">Qux</h3></div>',
 			),
 
-			// FIXME: Note the extraneous `div` at the end of this example and at the
-			// beginning of the first example.
+			// The first heading found is the highest ranked
+			// subheading.
 			array(
-				array( 'h2', 'h1' ),
-				$input,
-				'<div><h1 class="in-block">Foo</h1></div><h2>Bar</h2><div></div>',
+				array( 'h1', 'h2', 'h3' ),
+				'<h2>Bar</h2><h3>Qux</h3>',
+				'<h2>Bar</h2><div><h3 class="in-block">Qux</h3></div>',
+			),
+
+			// Unenclosed text is appended to the expandable container.
+			array(
+				array( 'h1', 'h2' ),
+				'<h1>Foo</h1><h2>Bar</h2>A',
+				'<h1>Foo</h1><div><h2 class="in-block">Bar</h2>A</div>',
+			),
+
+			// Unencloded text that appears before the first
+			// heading is appended to a container.
+			//
+			// FIXME: This behaviour was included for backwards
+			// compatibility but mightn't be necessary.
+			array(
+				array( 'h1', 'h2' ),
+				'A<h1>Foo</h1><h2>Bar</h2>',
+				'<div>A</div><h1>Foo</h1><div><h2 class="in-block">Bar</h2></div>',
+			),
+
+			// Multiple headings are handled identically.
+			array(
+				array( 'h1', 'h2' ),
+				'<h1>Foo</h1><h2>Bar</h2>Baz<h1>Qux</h1>Quux',
+				'<h1>Foo</h1><div><h2 class="in-block">Bar</h2>Baz</div><h1>Qux</h1><div>Quux</div>',
 			),
 		);
 	}

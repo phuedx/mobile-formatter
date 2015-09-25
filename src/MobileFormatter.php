@@ -8,23 +8,12 @@ namespace Wikimedia\MobileFormatter;
 use HtmlFormatter;
 use DOMDocument;
 use DOMXPath;
+use InvalidArgumentException;
 
 /**
  * Converts HTML into a mobile-friendly version
  */
 class MobileFormatter extends HtmlFormatter {
-	/** @var string $pageTransformStart String prefixes to be
-		applied at start and end of output from Parser */
-	protected $pageTransformStart = '<div>';
-	/** @var string $pageTransformEnd String prefixes to be
-		applied at start and end of output from Parser */
-	protected $pageTransformEnd = '</div>';
-	/** @var string $headingTransformStart String prefixes to be
-		applied before and after section content. */
-	protected $headingTransformStart = '</div>';
-	/** @var string $headingTransformEnd String prefixes to be
-		applied before and after section content. */
-	protected $headingTransformEnd = '<div>';
 	/** @var array $topHeadingTags Array of strings with possible tags,
 		can be recognized as top headings. */
 	public $topHeadingTags = array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' );
@@ -69,34 +58,41 @@ class MobileFormatter extends HtmlFormatter {
 	 *
 	 * As sections are being marked as expandable, their associated headings
 	 * are found and transformed. For details of the transformation see
-	 * {@link MobileFormatter::headingTransform}.  The "top heading tags"
-	 * property property defines the set of tags that will be considered
-	 * headings and the order in which they will be searched for in the
-	 * document.  The first heading tag found will be ignored but all others
-	 * will be transformed.
+	 * {@see MobileFormatter::getText}. The "top heading tags" property
+	 * property defines the set of tags that will be considered headings
+	 * and the order in which they will be searched for in the document.
+	 * The first heading tag found will be ignored but all others will be
+	 * transformed.
 	 *
 	 * Example:
-	 * <code>
+	 * <code><pre>
 	 * <?php
 	 *
-	 * $input = '<h1>Foo</h1><div><h2>Bar</h2></div>
+	 * $input = '<h1>Foo</h1><div><h2>Bar</h2>Baz<h3>Quux</h3></div>'
 	 * $formatter = new \Wikimedia\MobileFormatter\MobileFormatter( $input );
 	 * $formatter->enableExpandableSections();
-	 *
-	 * // Note well the order of the tags.
-	 * $formatter->setTopHeadingTags( array( 'h2', 'h1' ) );
+	 * $formatter->setTopHeadingTags( array( 'h2', 'h3' ) );
 	 *
 	 * $formatter->getText();
-	 * // => "<div><h1 class="in-block">Foo</h1></div><h2>Bar</h2><div></div>"
-	 * </code>
+	 * // => "<div><h1>Foo</h1></div><h2>Bar</h2>Baz<h3 class="in-block">Quux</h3>"
+	 * </pre></code>
 	 *
 	 * By default, the rank of the HTML heading elements is respected, i.e.
-	 * the default value is <code>['h1', 'h2', 'h3', 'h4', 'h5',
-	 * 'h6']</code>.
+	 * the default value is
+	 * <code>['h1', 'h2', 'h3', 'h4', 'h5', 'h6']</code>.
 	 *
 	 * @param array $topHeadingTags
+	 * @throws InvalidArgumentException
 	 */
 	public function setTopHeadingTags( array $topHeadingTags ) {
+		$validHeadingTags = array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' );
+
+		$topHeadingTags = (array)$topHeadingTags;
+
+		if ( !$topHeadingTags || array_diff( $topHeadingTags, $validHeadingTags ) ) {
+			throw new InvalidArgumentException();
+		}
+
 		$this->topHeadingTags = $topHeadingTags;
 	}
 
@@ -146,16 +142,29 @@ class MobileFormatter extends HtmlFormatter {
 	}
 
 	/**
-	 * Performs final transformations to mobile format and returns resulting HTML
+	 * {@inheritdoc}
 	 *
-	 * @param DOMElement|string|null $element ID of element to get HTML from or
-	 *   false to get it from the whole tree
-	 * @return string Processed HTML
+	 * In this case, there are two transformations applied to the entirety
+	 * of the document:
+	 *
+	 * <ol>
+	 *   <li>
+	 *     the sections demarcated by the highest rank heading are made
+	 *     expandable ({@see MobileFormatter::makeSectionsExpandable})
+	 *   </li>
+	 *   <li>
+	 *     all subheadings are marked as editable
+	 *     ({@see MobileFormatter::makeHeadingsEditable})
+	 *   </li>
+	 * </ol>
+	 *
+	 * @param DOMElement|string|null $element
+	 * @return string
 	 */
 	public function getText( $element = null ) {
-		$html = parent::getText( $element );
+		$this->transformHeadings();
 
-		return $html;
+		return parent::getText( $element );
 	}
 
 	/**
@@ -168,91 +177,132 @@ class MobileFormatter extends HtmlFormatter {
 	}
 
 	/**
-	 * Transforms heading for toggling and editing
-	 *
-	 * - Add CSS classes to all heading tags _inside_ a section to enable
-	 *   editing of these sections. Doesn't add this class to the first
-	 *   heading (<code>$tagName</code>)
-	 *   {@see MobileFormatter::markSubHeadingsAsEditable}
-	 * - Wraps section-content inside a div to enable toggling
-	 *
-	 * @param string $s
-	 * @param string $tagName
-	 * @return string
+	 * See the documentation for {@see MobileFormatter::getText}.
 	 */
-	protected function headingTransform( $s, $tagName = 'h2' ) {
-		$s = $this->markSubHeadingsAsEditable( $s, $tagName );
+	protected function transformHeadings() {
+		$doc = $this->getDoc();
+		list( $headings, $subheadings ) = $this->getHeadings( $doc );
 
-		// Makes sections expandable
-		$tagRegEx = '<' . $tagName . '.*</' . $tagName . '>';
-		$s = $this->pageTransformStart .
-			preg_replace(
-				'%(' . $tagRegEx . ')%sU', $this->headingTransformStart . '\1' . $this->headingTransformEnd,
-				$s
-			) .
-			$this->pageTransformEnd;
-
-		return $s;
+		$this->makeSectionsExpandable( $doc, $headings );
+		$this->makeHeadingsEditable( $subheadings );
 	}
 
 	/**
-	 * Marks sub-headings in a section as editable by adding the
-	 * <code>in-block</code> class.
+	 * Gets all headings in the document in rank order.
 	 *
-	 * @param string $html
-	 * @param string $sectionHeading The tag name of the section's heading
-	 *  element
-	 * @return string
+	 * Note well that the rank order is defined by the
+	 * <code>MobileFormatter#topHeadingTags</code> property, which can be
+	 * set with {@see MobileFormatter::setTopHeadingTags}.
+	 *
+	 * @param DOMDocument $doc
+	 * @return array A two-element array where the first is the highest
+	 *  rank headings and the second is all other headings
 	 */
-	protected function markSubHeadingsAsEditable( $html, $sectionHeading ) {
-		// add in-block class to all headings included in this section (except the first one)
-		return preg_replace_callback(
-			'/<(h[1-6])>/si',
-			function ( $match ) use ( $sectionHeading ) {
-				$tag = $match[1];
-				$cssClass = '';
-				if ( $tag !== $sectionHeading ) {
-					$cssClass = ' class="in-block"';
-				}
-				return '<' . $tag . $cssClass . '>';
-			},
-			$html
-		);
-	}
+	private function getHeadings( DOMDocument $doc ) {
+		$result = array();
+		$headings = $subheadings = array();
 
-	/**
-	 * Finds the first heading in the page and uses that to determine top level sections.
-	 * When a page contains no headings returns h6.
-	 *
-	 * @param string $html
-	 * @return string the tag name for the top level headings
-	 */
-	protected function findTopHeading( $html ) {
-		$tags = $this->topHeadingTags;
-		if ( !is_array( $tags ) ) {
-			throw new UnexpectedValueException( 'Possible top headings needs to be an array of strings, ' .
-				gettype( $tags ) . ' given.' );
-		}
-		foreach ( $tags as $tag ) {
-			if ( strpos( $html, '<' . $tag ) !== false ) {
-				return $tag;
+		foreach ( $this->topHeadingTags as $tagName ) {
+			$elements = $doc->getElementsByTagName( $tagName );
+
+			if ( !$elements->length ) {
+				continue;
+			}
+
+			$elements = iterator_to_array( $elements );
+
+			if ( !$headings ) {
+				$headings = $elements;
+			} else {
+				$subheadings = array_merge( $subheadings, $elements );
 			}
 		}
-		return 'h6';
+
+		return array( $headings, $subheadings );
 	}
 
 	/**
-	 * Call headingTransform if needed
+	 * Marks the headings as editable by adding the <code>in-block</code>
+	 * class to each of them, if it hasn't already been added.
 	 *
-	 * @param string $html
-	 * @return string
+	 * FIXME: <code>in-block</code> isn't semantic in that it isn't
+	 * obviously connected to being editable.
+	 *
+	 * @param [DOMElement] $headings
 	 */
-	protected function onHtmlReady( $html ) {
-		if ( $this->expandableSections ) {
-			$tagName = $this->findTopHeading( $html );
-			$html = $this->headingTransform( $html, $tagName );
+	protected function makeHeadingsEditable( array $headings ) {
+		foreach ( $headings as $heading ) {
+			$class = $heading->getAttribute( 'class' );
+
+			if ( strpos( $class, 'in-block' ) === false ) {
+				$heading->setAttribute(
+					'class',
+					ltrim( $class . ' in-block' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Splits the body of the document into sections demarcated by the
+	 * <code>$headings</code> elements.
+	 *
+	 * All member elements of the sections are added to a
+	 * <code><div></code> so that the sections can be made "expandable" by
+	 * the client.
+	 *
+	 * Example:
+	 * <code><pre>
+	 * <?php
+	 *
+	 * $input = '<h1>Foo</h1><div><h2>Bar</h2><p>Baz</p></div>'
+	 * $formatter = new \Wikimedia\MobileFormatter\MobileFormatter( $input );
+	 * $formatter->enableExpandableSections();
+	 *
+	 * $formatter->getText();
+	 * // => "<h1>Foo</h1><div><h2 class="in-block">Bar</h2><p>Baz</p></div>"
+	 * </pre></code>
+	 *
+	 * @param DOMDocument $doc
+	 * @param [DOMElement] $headings The headings returned by
+	 *  {@see MobileFormatter::getHeadings}
+	 */
+	protected function makeSectionsExpandable( DOMDocument $doc, array $headings ) {
+		if ( !$this->expandableSections || !$headings ) {
+			return;
 		}
 
-		return $html;
+		$body = $doc->getElementsByTagName( 'body' )->item( 0 );
+		$sibling = $body->firstChild;
+
+		// TODO: Under HHVM 3.6.6, `iterator_to_array` returns a
+		// one-indexed array rather than a zero-indexed array (see
+		// https://travis-ci.org/phuedx/mobile-formatter).  Create a
+		// minimal test case and raise a bug.
+		$firstHeading = reset( $headings );
+		$div = $doc->createElement( 'div' );
+
+		while ( $sibling ) {
+			$node = $sibling;
+			$sibling = $sibling->nextSibling;
+
+			// Note well the use of DOMNode#nodeName here. Only
+			// DOMElement defines DOMElement#tagName.  So, if
+			// there's trailing text - represented by DOMText -
+			// then accessing #tagName will trigger an error.
+			if ( $node->nodeName === $firstHeading->nodeName ) {
+				if ( $div->hasChildNodes() ) {
+					$body->insertBefore( $div, $node );
+
+					$div = $doc->createElement( 'div' );
+				}
+
+				continue;
+			}
+
+			$div->appendChild( $node );
+		}
+
+		$body->appendChild( $div );
 	}
 }
