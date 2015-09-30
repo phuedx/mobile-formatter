@@ -47,13 +47,6 @@ class MobileFormatter extends HtmlFormatter {
 	}
 
 	/**
-	 * Change mainPage (is this the main page) to $value (standard: true)
-	 * @param boolean $value
-	 */
-	public function setIsMainPage( $value = true ) {
-	}
-
-	/**
 	 * Sets the possible heading tags
 	 *
 	 * As sections are being marked as expandable, their associated headings
