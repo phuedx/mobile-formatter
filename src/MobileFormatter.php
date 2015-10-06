@@ -24,6 +24,11 @@ class MobileFormatter extends HtmlFormatter {
 	 */
 	protected $expandableSections = false;
 
+	protected $removableClasses = array(
+		'base' => array(),
+		'HTML' => array(),
+	);
+
 	/**
 	 * Initializes a new instance of the class.
 	 *
@@ -90,19 +95,54 @@ class MobileFormatter extends HtmlFormatter {
 	}
 
 	/**
+	 * Sets the classes that will be used to select elements to remove from
+	 * the document.
+	 *
+	 * The <code>$removableClasses</code> parameter is expected to be a map
+	 * with one or both of the "base" and "HTML" entries mapping to a set
+	 * of selectors that can be passed to {@see HtmlFormatter::remove}.
+	 *
+	 * @TODO For historical reasons, the classes are partitioned into
+	 * "base" and "HTML" sets. Find out why and, if possible, simply accept
+	 * a single set of classes.
+	 *
+	 * @param array $removableClasses
+	 */
+	public function setRemovableClasses( array $removableClasses ) {
+		foreach ( array( 'base', 'HTML' ) as $index ) {
+			if ( isset( $removableClasses[$index] ) ) {
+				$this->removableClasses[$index] = $removableClasses[$index];
+			}
+		}
+	}
+
+	/**
+	 * Gets the classes that will be used to select elements to remove from
+	 * the document.
+	 *
+	 * By default, no elements will be selected to be removed, i.e.
+	 *
+	 * <code><pre>
+	 * $formatter = new \Wikimedia\MobileFormatter\MobileFormatter( '' );
+	 * $formatter->getRemovableClasses();
+	 * // => ["base" => [], "HTML" => []]
+	 * </pre></code>
+	 *
+	 * @return array
+	 */
+	public function getRemovableClasses() {
+		return $this->removableClasses;
+	}
+
+	/**
 	 * Removes content inappropriate for mobile devices
 	 * @param bool $removeDefaults Whether default settings at $wgMFRemovableClasses should be used
 	 * @return array
 	 */
 	public function filterContent( $removeDefaults = true ) {
-		$mfRemovableClasses = array(
-			'base' => array(),
-			'HTML' => array(),
-		);
-
 		if ( $removeDefaults ) {
-			$this->remove( $mfRemovableClasses['base'] );
-			$this->remove( $mfRemovableClasses['HTML'] ); // @todo: Migrate this variable
+			$this->remove( $this->removableClasses['base'] );
+			$this->remove( $this->removableClasses['HTML'] );
 		}
 
 		if ( $this->removeMedia ) {

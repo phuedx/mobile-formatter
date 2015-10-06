@@ -207,4 +207,48 @@ class MobileFormatterTest extends PHPUnit_Framework_TestCase {
 			),
 		);
 	}
+
+	/**
+	 * @dataProvider provideRemovableClasses
+	 */
+	public function testRemovableClasses( $removableClasses, $expectedRemovableClasses ) {
+		$formatter = new MobileFormatter( '' );
+		$formatter->setRemovableClasses( $removableClasses );
+
+		$this->assertEquals( $expectedRemovableClasses, $formatter->getRemovableClasses() );
+	}
+
+	public function provideRemovableClasses() {
+		return array(
+
+			// Passing an empty map shouldn't have any effect.
+			array(
+				array(),
+				array(
+					'base' => array(),
+					'HTML' => array(),
+				),
+			),
+
+			// One or both of the "base" or "HTML" entries in the
+			// map should have an effect.
+			array(
+				array( 'base' => array( '.foo' ) ),
+				array(
+					'base' => array( '.foo' ),
+					'HTML' => array(),
+				),
+			),
+			array(
+				array(
+					'base' => array( '.foo' ),
+					'HTML' => array( '#bar' ),
+				),
+				array(
+					'base' => array( '.foo' ),
+					'HTML' => array( '#bar' ),
+				),
+			),
+		);
+	}
 }
